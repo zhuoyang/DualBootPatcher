@@ -25,6 +25,8 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+#include <zip.h>
+
 #include "patchererror.h"
 
 
@@ -75,6 +77,28 @@ public:
     static PatcherError laArchiveStats(const std::string &path,
                                        ArchiveStats *stats,
                                        std::vector<std::string> ignore);
+
+    // libzip
+    static bool lzReadToMemory(struct zip *z,
+                               zip_uint64_t index,
+                               std::vector<unsigned char> *output);
+
+    static bool lzExtractFile(struct zip *z,
+                              zip_uint64_t index,
+                              const std::string &directory);
+
+    static PatcherError lzAddFile(struct zip * const z,
+                                  const std::string &name,
+                                  const std::vector<unsigned char> &contents);
+
+    static PatcherError lzAddFile(struct zip * const z,
+                                  const std::string &name,
+                                  const std::string &path);
+
+    static PatcherError lzCopyDataDirect(struct zip * const zInput,
+                                         struct zip * const zOutput,
+                                         zip_uint64_t index,
+                                         const std::string &name);
 };
 
 }

@@ -31,7 +31,7 @@ include(cmake/LogicalCoreCount.cmake)
 # Main patcher
 add_subdirectory(libmbp)
 add_subdirectory(data)
-add_subdirectory(mbtool)
+#add_subdirectory(mbtool)
 
 if(MBP_BUILD_ANDROID)
     add_subdirectory(libmiscstuff)

@@ -132,6 +132,7 @@ else()
         ${MBP_ZLIB_LIBRARIES}
         ${MBP_LIBLZMA_LIBRARIES}
         ${MBP_LIBARCHIVE_LIBRARIES}
+        ${MBP_LIBZIP_LIBRARIES}
     )
 
     if(WIN32)
@@ -151,6 +152,8 @@ endif()
 ################################################################################
 # libmbp-mini for Android
 ################################################################################
+
+return()
 
 set(MBP_MINI_SOURCES
     bootimage.cpp

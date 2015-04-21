@@ -477,4 +477,147 @@ PatcherError FileUtils::laArchiveStats(const std::string &path,
     return PatcherError();
 }
 
+bool FileUtils::lzReadToMemory(struct zip *z,
+                               zip_uint64_t index,
+                               std::vector<unsigned char> *output)
+{
+    struct zip_file *zf;
+    struct zip_stat sb;
+
+    if (zip_stat_index(z, index, 0, &sb) < 0) {
+        FLOGE("libzip: {}", zip_strerror(z));
+        return false;
+    }
+
+    zf = zip_fopen_index(z, index, 0);
+    if (!zf) {
+        FLOGE("libzip: {}", zip_strerror(z));
+        return false;
+    }
+
+    std::vector<unsigned char> data(sb.size);
+
+    zip_int64_t total = 0;
+    zip_int64_t n;
+
+    while ((n = zip_fread(zf, data.data() + total, data.size())) > 0) {
+        total += n;
+    }
+
+    zip_fclose(zf);
+
+    if (n != 0) {
+        return false;
+    }
+
+    data.swap(*output);
+    return true;
+}
+
+bool FileUtils::lzExtractFile(struct zip *z,
+                              zip_uint64_t index,
+                              const std::string &directory)
+{
+    struct zip_file *zf;
+
+    zf = zip_fopen_index(z, index, 0);
+    if (!zf) {
+        FLOGE("libzip: {}", zip_strerror(z));
+        return false;
+    }
+
+    std::string fullPath = directory + "/" + zip_get_name(z, index, 0);
+    boost::filesystem::path path(fullPath);
+    boost::filesystem::create_directories(path.parent_path());
+
+    std::ofstream file(fullPath, std::ios::binary);
+
+    if (file.fail()) {
+        zip_fclose(zf);
+        return false;
+    }
+
+    char buf[10240];
+    zip_int64_t n;
+
+    while ((n = zip_fread(zf, buf, sizeof(buf))) > 0) {
+        file.write(reinterpret_cast<const char *>(buf), n);
+    }
+
+    file.close();
+
+    zip_fclose(zf);
+
+    return n == 0;
+}
+
+PatcherError FileUtils::lzAddFile(struct zip * const z,
+                                  const std::string &name,
+                                  const std::vector<unsigned char> &contents)
+{
+    // Create new source from the data
+    struct zip_source *newSource = zip_source_buffer(
+            z, contents.data(), contents.size(), 0);
+    if (!newSource) {
+        FLOGE("libzip: {}", zip_strerror(z));
+        return PatcherError::createArchiveError(
+                ErrorCode::ArchiveWriteOpenError, name);
+    }
+
+    if (zip_file_add(z, name.c_str(), newSource, ZIP_FL_ENC_UTF_8) < 0) {
+        FLOGE("libzip: {}", zip_strerror(z));
+        zip_source_free(newSource);
+        return PatcherError::createArchiveError(
+                ErrorCode::ArchiveWriteDataError, name);
+    }
+
+    return PatcherError();
+}
+
+PatcherError FileUtils::lzAddFile(struct zip * const z,
+                                  const std::string &name,
+                                  const std::string &path)
+{
+    struct zip_source *newSource = zip_source_file(z, path.c_str(), 0, -1);
+    if (!newSource) {
+        FLOGE("libzip: {}", zip_strerror(z));
+        return PatcherError::createArchiveError(
+                ErrorCode::ArchiveWriteOpenError, name);
+    }
+
+    if (zip_file_add(z, name.c_str(), newSource, ZIP_FL_ENC_UTF_8) < 0) {
+        FLOGE("libzip: {}", zip_strerror(z));
+        zip_source_free(newSource);
+        return PatcherError::createArchiveError(
+                ErrorCode::ArchiveWriteDataError, name);
+    }
+
+    return PatcherError();
+}
+
+PatcherError FileUtils::lzCopyDataDirect(zip * const zInput,
+                                         zip * const zOutput,
+                                         zip_uint64_t index,
+                                         const std::string &name)
+{
+    // libzip is awesome! Copying without decompression
+    struct zip_source *newSource = zip_source_zip(
+            zOutput, zInput, index, 0, 0, -1);
+    if (!newSource) {
+        FLOGE("libzip: {}", zip_strerror(zOutput));
+        return PatcherError::createArchiveError(
+                ErrorCode::ArchiveWriteOpenError, name);
+    }
+
+    if (zip_file_add(zOutput, name.c_str(), newSource,
+                     ZIP_FL_ENC_UTF_8) < 0) {
+        FLOGE("libzip: {}", zip_strerror(zOutput));
+        zip_source_free(newSource);
+        return PatcherError::createArchiveError(
+                ErrorCode::ArchiveWriteDataError, name);
+    }
+
+    return PatcherError();
+}
+
 }

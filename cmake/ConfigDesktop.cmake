@@ -49,7 +49,7 @@ find_package(Qt5Core 5.3 REQUIRED)
 
 
 # Same logic as CMakeLists.txt from the CMake source
-set(EXTERNAL_LIBRARIES LIBARCHIVE LIBLZMA LZ4 ZLIB)
+set(EXTERNAL_LIBRARIES LIBZIP LIBARCHIVE LIBLZMA LZ4 ZLIB)
 foreach(extlib ${EXTERNAL_LIBRARIES})
     if(NOT DEFINED MBP_USE_SYSTEM_LIBRARY_${extlib}
             AND DEFINED MBP_USE_SYSTEM_LIBRARIES)
@@ -71,6 +71,11 @@ endforeach()
 
 
 # Optionally use system utility libraries.
+option(
+    MBP_USE_SYSTEM_LIBZIP
+    "Use system-installed libzip"
+    "${MBP_USE_SYSTEM_LIBRARY_LIBZIP}"
+)
 option(
     MBP_USE_SYSTEM_LIBARCHIVE
     "Use system-installed libarchive"
@@ -140,6 +145,30 @@ else()
             EXCLUDE_FROM_DEFAULT_BUILD 1
         )
     endforeach()
+endif()
+
+
+# libzip
+if(MBP_USE_SYSTEM_LIBZIP)
+    find_path(MBP_LIBZIP_INCLUDES zip.h)
+    find_library(MBP_LIBZIP_LIBRARIES NAMES zip libzip)
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(LIBZIP DEFAULT_MSG MBP_LIBZIP_LIBRARIES MBP_LIBZIP_INCLUDES)
+    if(NOT LIBZIP_FOUND)
+        message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBZIP is ON but LIBZIP is not found!")
+    endif()
+else()
+    set(LIBZIP_LIBRARY_ONLY ON CACHE INTERNAL "Build the library only")
+    set(LIBZIP_INSTALL OFF CACHE INTERNAL "Install the built tools and/or libraries")
+    set(LIBZIP_STATIC ON CACHE INTERNAL "Build as a static library")
+    add_subdirectory(external/libzip)
+    set(MBP_LIBZIP_INCLUDES ${CMAKE_SOURCE_DIR}/external/libzip/lib)
+    set(MBP_LIBZIP_LIBRARIES zip)
+    set_target_properties(
+        zip
+        PROPERTIES
+        POSITION_INDEPENDENT_CODE 1
+    )
 endif()
 
 

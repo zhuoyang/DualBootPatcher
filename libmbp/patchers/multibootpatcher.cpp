@@ -26,6 +26,8 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+#include <zip.h>
+
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -68,17 +70,17 @@ public:
     void *userData;
 
     // Patching
-    archive *aInput = nullptr;
-    archive *aOutput = nullptr;
+    struct zip *zInput = nullptr;
+    struct zip *zOutput = nullptr;
     std::vector<AutoPatcher *> autoPatchers;
 
     bool patchBootImage(std::vector<unsigned char> *data);
     bool patchZip();
 
-    bool pass1(archive * const aOutput,
+    bool pass1(struct zip * const zOutput,
                const std::string &temporaryDir,
                const std::unordered_set<std::string> &exclude);
-    bool pass2(archive * const aOutput,
+    bool pass2(struct zip * const zOutput,
                const std::string &temporaryDir,
                const std::unordered_set<std::string> &files);
     bool openInputArchive();
@@ -192,11 +194,14 @@ bool MultiBootPatcher::patchFile(ProgressUpdatedCallback progressCb,
     }
     m_impl->autoPatchers.clear();
 
-    if (m_impl->aInput != nullptr) {
-        m_impl->closeInputArchive();
-    }
-    if (m_impl->aOutput != nullptr) {
+    //if (m_impl->zInput != nullptr) {
+    //    m_impl->closeInputArchive();
+    //}
+    if (m_impl->zOutput != nullptr) {
         m_impl->closeOutputArchive();
+    }
+    if (m_impl->zInput != nullptr) {
+        m_impl->closeInputArchive();
     }
 
     if (m_impl->cancelled) {
@@ -344,7 +349,7 @@ bool MultiBootPatcher::Impl::patchZip()
     // Create temporary dir for extracted files for autopatchers
     std::string tempDir = FileUtils::createTemporaryDir(pc->tempDirectory());
 
-    if (!pass1(aOutput, tempDir, excludeFromPass1)) {
+    if (!pass1(zOutput, tempDir, excludeFromPass1)) {
         boost::filesystem::remove_all(tempDir);
         return false;
     }
@@ -353,7 +358,7 @@ bool MultiBootPatcher::Impl::patchZip()
 
     // On the second pass, run the autopatchers on the rest of the files
 
-    if (!pass2(aOutput, tempDir, excludeFromPass1)) {
+    if (!pass2(zOutput, tempDir, excludeFromPass1)) {
         boost::filesystem::remove_all(tempDir);
         return false;
     }
@@ -366,8 +371,8 @@ bool MultiBootPatcher::Impl::patchZip()
     updateDetails("META-INF/com/google/android/update-binary");
 
     // Add mbtool_recovery
-    result = FileUtils::laAddFile(
-            aOutput, "META-INF/com/google/android/update-binary",
+    result = FileUtils::lzAddFile(
+            zOutput, "META-INF/com/google/android/update-binary",
             pc->dataDirectory() + "/binaries/android/"
                     + info->device()->architecture() + "/mbtool_recovery");
     if (!result) {
@@ -381,8 +386,8 @@ bool MultiBootPatcher::Impl::patchZip()
     updateDetails("multiboot/aromawrapper.zip");
 
     // Add aromawrapper.zip
-    result = FileUtils::laAddFile(
-            aOutput, "multiboot/aromawrapper.zip",
+    result = FileUtils::lzAddFile(
+            zOutput, "multiboot/aromawrapper.zip",
             pc->dataDirectory() + "/aromawrapper.zip");
     if (!result) {
         error = result;
@@ -395,8 +400,8 @@ bool MultiBootPatcher::Impl::patchZip()
     updateDetails("multiboot/bb-wrapper.sh");
 
     // Add bb-wrapper.sh
-    result = FileUtils::laAddFile(
-        aOutput, "multiboot/bb-wrapper.sh",
+    result = FileUtils::lzAddFile(
+        zOutput, "multiboot/bb-wrapper.sh",
         pc->dataDirectory() + "/scripts/bb-wrapper.sh");
     if (!result) {
         error = result;
@@ -409,8 +414,8 @@ bool MultiBootPatcher::Impl::patchZip()
     updateDetails("multiboot/unzip");
 
     // Add unzip.tar.xz
-    result = FileUtils::laAddFile(
-            aOutput, "multiboot/unzip",
+    result = FileUtils::lzAddFile(
+            zOutput, "multiboot/unzip",
             pc->dataDirectory() + "/binaries/android/"
                     + info->device()->architecture() + "/unzip");
     if (!result) {
@@ -424,8 +429,8 @@ bool MultiBootPatcher::Impl::patchZip()
     updateDetails("multiboot/info.prop");
 
     const std::string infoProp = createInfoProp();
-    result = FileUtils::laAddFile(
-            aOutput, "multiboot/info.prop",
+    result = FileUtils::lzAddFile(
+            zOutput, "multiboot/info.prop",
             std::vector<unsigned char>(infoProp.begin(), infoProp.end()));
     if (!result) {
         error = result;
@@ -447,7 +452,7 @@ bool MultiBootPatcher::Impl::patchZip()
  * - Files needed by an AutoPatcher are extracted to the temporary directory.
  * - Otherwise, the file is copied directly to the output zip.
  */
-bool MultiBootPatcher::Impl::pass1(archive * const aOutput,
+bool MultiBootPatcher::Impl::pass1(struct zip * const zOutput,
                                    const std::string &temporaryDir,
                                    const std::unordered_set<std::string> &exclude)
 {
@@ -455,19 +460,36 @@ bool MultiBootPatcher::Impl::pass1(archive * const aOutput,
     bool hasBootImage = info->patchInfo()->hasBootImage();
     auto piBootImages = info->patchInfo()->bootImages();
 
-    archive_entry *entry;
+    struct zip_stat sb;
+    zip_int64_t numFiles;
 
-    while (archive_read_next_header(aInput, &entry) == ARCHIVE_OK) {
+    numFiles = zip_get_num_entries(zInput, 0);
+    if (numFiles < 0) {
+        FLOGE("libzip: Failed to get number of entries: {}",
+              zip_strerror(zInput));
+        error = PatcherError::createArchiveError(
+                ErrorCode::ArchiveReadHeaderError, std::string());
+        return false;
+    }
+
+    for (zip_uint64_t i = 0; i < (zip_uint64_t) numFiles; ++i) {
         if (cancelled) return false;
 
-        const std::string curFile = archive_entry_pathname(entry);
+        if (zip_stat_index(zInput, i, 0, &sb) < 0) {
+            FLOGE("libzip: Failed to stat: {}", zip_strerror(zInput));
+            error = PatcherError::createArchiveError(
+                    ErrorCode::ArchiveReadHeaderError, std::string());
+            return false;
+        }
+
+        std::string curFile = zip_get_name(zInput, i, 0);
 
         updateFiles(++files, maxFiles);
         updateDetails(curFile);
 
         // Skip files that should be patched and added in pass 2
         if (exclude.find(curFile) != exclude.end()) {
-            if (!FileUtils::laExtractFile(aInput, entry, temporaryDir)) {
+            if (!FileUtils::lzExtractFile(zInput, i, temporaryDir)) {
                 error = PatcherError::createArchiveError(
                         ErrorCode::ArchiveReadDataError, curFile);
                 return false;
@@ -484,15 +506,13 @@ bool MultiBootPatcher::Impl::pass1(archive * const aOutput,
         bool isExtLok = boost::ends_with(curFile, ".lok");
         // Boot images should be over about 30 MiB. This check is here so the
         // patcher won't try to read a multi-gigabyte system image into RAM
-        bool isSizeOK = archive_entry_size(entry) <= 30 * 1024 * 1024;
+        bool isSizeOK = sb.size <= 30 * 1024 * 1024;
 
         if (hasBootImage && (inList || isExtImg || isExtLok) && isSizeOK) {
             // Load the file into memory
             std::vector<unsigned char> data;
 
-            if (!FileUtils::laReadToByteArray(aInput, entry, &data,
-                                              &laProgressCb, this)) {
-                FLOGW("libarchive: {}", archive_error_string(aInput));
+            if (!FileUtils::lzReadToMemory(zInput, i, &data /*, &laProgressCb, this */)) {
                 error = PatcherError::createArchiveError(
                         ErrorCode::ArchiveReadDataError, curFile);
                 return false;
@@ -512,47 +532,34 @@ bool MultiBootPatcher::Impl::pass1(archive * const aOutput,
                     }
 
                     // Update total size
-                    maxBytes += (data.size() - archive_entry_size(entry));
-
-                    archive_entry_set_size(entry, data.size());
+                    maxBytes += (data.size() - sb.size);
                 }
             }
 
-            // Write header to new file
-            if (archive_write_header(aOutput, entry) != ARCHIVE_OK) {
-                FLOGW("libarchive: {}", archive_error_string(aOutput));
-                error = PatcherError::createArchiveError(
-                        ErrorCode::ArchiveWriteHeaderError, curFile);
+            PatcherError ret = FileUtils::lzAddFile(zOutput, curFile, data);
+            if (!ret) {
+                error = ret;
                 return false;
             }
 
-            archive_write_data(aOutput, data.data(), data.size());
+            bytes += data.size();
         } else {
             // Directly copy other files to the output zip
 
             // Rename the installer for mbtool
-            if (archive_entry_pathname(entry) ==
-                    std::string("META-INF/com/google/android/update-binary")) {
-                archive_entry_set_pathname(
-                        entry, "META-INF/com/google/android/update-binary.orig");
+            if (curFile == "META-INF/com/google/android/update-binary") {
+                curFile = "META-INF/com/google/android/update-binary.orig";
             }
 
-            if (archive_write_header(aOutput, entry) != ARCHIVE_OK) {
-                FLOGW("libarchive: {}", archive_error_string(aOutput));
-                error = PatcherError::createArchiveError(
-                        ErrorCode::ArchiveWriteHeaderError, curFile);
+            PatcherError ret = FileUtils::lzCopyDataDirect(
+                    zInput, zOutput, i, curFile);
+            if (!ret) {
+                error = ret;
                 return false;
             }
 
-            if (!FileUtils::laCopyData(aInput, aOutput, &laProgressCb, this)) {
-                FLOGW("libarchive: {}", archive_error_string(aInput));
-                error = PatcherError::createArchiveError(
-                        ErrorCode::ArchiveWriteDataError, curFile);
-                return false;
-            }
+            bytes += sb.size;
         }
-
-        bytes += archive_entry_size(entry);
     }
 
     if (cancelled) return false;
@@ -568,7 +575,7 @@ bool MultiBootPatcher::Impl::pass1(archive * const aOutput,
  * - Patch files in the temporary directory using the AutoPatchers and add the
  *   resulting files to the output zip
  */
-bool MultiBootPatcher::Impl::pass2(archive * const aOutput,
+bool MultiBootPatcher::Impl::pass2(struct zip * const zOutput,
                                    const std::string &temporaryDir,
                                    const std::unordered_set<std::string> &files)
 {
@@ -585,18 +592,22 @@ bool MultiBootPatcher::Impl::pass2(archive * const aOutput,
     for (auto const &file : files) {
         if (cancelled) return false;
 
+        std::string path(temporaryDir);
+        path += "/";
+        path += file;
+
         PatcherError ret;
 
         if (file == "META-INF/com/google/android/update-binary") {
-            ret = FileUtils::laAddFile(
-                    aOutput,
+            ret = FileUtils::lzAddFile(
+                    zOutput,
                     "META-INF/com/google/android/update-binary.orig",
-                    temporaryDir + "/" + file);
+                    path);
         } else {
-            ret = FileUtils::laAddFile(
-                    aOutput,
+            ret = FileUtils::lzAddFile(
+                    zOutput,
                     file,
-                    temporaryDir + "/" + file);
+                    path);
         }
 
         if (!ret) {
@@ -612,19 +623,15 @@ bool MultiBootPatcher::Impl::pass2(archive * const aOutput,
 
 bool MultiBootPatcher::Impl::openInputArchive()
 {
-    assert(aInput == nullptr);
+    assert(zInput == nullptr);
 
-    aInput = archive_read_new();
+    char errorStr[1024];
+    int errorId = 0;
 
-    archive_read_support_filter_none(aInput);
-    archive_read_support_format_zip(aInput);
-
-    int ret = archive_read_open_filename(
-            aInput, info->filename().c_str(), 10240);
-    if (ret != ARCHIVE_OK) {
-        FLOGW("libarchive: {}", archive_error_string(aInput));
-        archive_read_free(aInput);
-        aInput = nullptr;
+    zInput = zip_open(info->filename().c_str(), 0, &errorId);
+    if (!zInput) {
+        zip_error_to_str(errorStr, sizeof(errorStr), errorId, errno);
+        FLOGW("libzip: Failed to open input archive: {}", errorStr);
 
         error = PatcherError::createArchiveError(
                 ErrorCode::ArchiveReadOpenError, info->filename());
@@ -636,27 +643,28 @@ bool MultiBootPatcher::Impl::openInputArchive()
 
 void MultiBootPatcher::Impl::closeInputArchive()
 {
-    assert(aInput != nullptr);
+    assert(zInput != nullptr);
 
-    archive_read_free(aInput);
-    aInput = nullptr;
+    if (zip_close(zInput) < 0) {
+        FLOGW("libzip: Failed to close input archive: {}",
+              zip_strerror(zInput));
+    }
+
+    zInput = nullptr;
 }
 
 bool MultiBootPatcher::Impl::openOutputArchive()
 {
-    assert(aOutput == nullptr);
+    assert(zOutput == nullptr);
 
-    aOutput = archive_write_new();
-
-    archive_write_set_format_zip(aOutput);
-    archive_write_add_filter_none(aOutput);
+    char errorStr[1024];
+    int errorId = 0;
 
     const std::string newPath = m_parent->newFilePath();
-    int ret = archive_write_open_filename(aOutput, newPath.c_str());
-    if (ret != ARCHIVE_OK) {
-        FLOGW("libarchive: {}", archive_error_string(aOutput));
-        archive_write_free(aOutput);
-        aOutput = nullptr;
+    zOutput = zip_open(newPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, &errorId);
+    if (!zOutput) {
+        zip_error_to_str(errorStr, sizeof(errorStr), errorId, errno);
+        FLOGW("libzip: Failed to open output archive: {}", errorStr);
 
         error = PatcherError::createArchiveError(
                 ErrorCode::ArchiveWriteOpenError, newPath);
@@ -668,10 +676,14 @@ bool MultiBootPatcher::Impl::openOutputArchive()
 
 void MultiBootPatcher::Impl::closeOutputArchive()
 {
-    assert(aOutput != nullptr);
+    assert(zOutput != nullptr);
 
-    archive_write_free(aOutput);
-    aOutput = nullptr;
+    if (zip_close(zOutput) < 0) {
+        FLOGW("libzip: Failed to close output archive: {}",
+              zip_strerror(zOutput));
+    }
+
+    zOutput = nullptr;
 }
 
 void MultiBootPatcher::Impl::updateProgress(uint64_t bytes, uint64_t maxBytes)
