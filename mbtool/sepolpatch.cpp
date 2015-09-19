@@ -48,8 +48,8 @@ static const char *permissive_types[] = {
     nullptr
 };
 
-static bool patch_sepolicy_internal(const std::string &source,
-                                    const std::string &target)
+static bool patch_sepolicy_internal(const char *source,
+                                    const char *target)
 {
     policydb_t pdb;
 
@@ -59,7 +59,7 @@ static bool patch_sepolicy_internal(const std::string &source,
     }
 
     if (!util::selinux_read_policy(source, &pdb)) {
-        LOGE("Failed to read SELinux policy file: %s", source.c_str());
+        LOGE("Failed to read SELinux policy file: %s", source);
         policydb_destroy(&pdb);
         return false;
     }
@@ -71,7 +71,7 @@ static bool patch_sepolicy_internal(const std::string &source,
     }
 
     if (!util::selinux_write_policy(target, &pdb)) {
-        LOGE("Failed to write SELinux policy file: %s", target.c_str());
+        LOGE("Failed to write SELinux policy file: %s", target);
         policydb_destroy(&pdb);
         return false;
     }
@@ -81,8 +81,8 @@ static bool patch_sepolicy_internal(const std::string &source,
     return true;
 }
 
-bool patch_sepolicy(const std::string &source,
-                    const std::string &target)
+bool patch_sepolicy(const char *source,
+                    const char *target)
 {
     return patch_sepolicy_internal(source, target);
 }

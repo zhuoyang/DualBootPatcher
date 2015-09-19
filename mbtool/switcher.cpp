@@ -148,10 +148,10 @@ bool checksums_write(const std::unordered_map<std::string, std::string> &props)
              checksums_path.c_str(), strerror(errno));
     }
 
-    util::mkdir_parent(checksums_path, 0755);
+    util::mkdir_parent(checksums_path.c_str(), 0755);
     util::create_empty_file(checksums_path);
 
-    if (!util::chown(checksums_path, 0, 0, 0)) {
+    if (!util::chown(checksums_path.c_str(), (uid_t) 0, (gid_t) 0, 0)) {
         LOGW("%s: Failed to chown file: %s",
              checksums_path.c_str(), strerror(errno));
     }
@@ -244,7 +244,7 @@ static bool fix_permissions()
 
     std::string context;
     if (util::selinux_lget_context("/data/media/0", &context)
-            && !util::selinux_lset_context_recursive(MULTIBOOT_DIR, context)) {
+            && !util::selinux_lset_context_recursive(MULTIBOOT_DIR, context.c_str())) {
         LOGE("%s: Failed to set context to %s: %s",
              MULTIBOOT_DIR, context.c_str(), strerror(errno));
         return false;
@@ -355,7 +355,7 @@ SwitchRomResult switch_rom(const std::string &id, const std::string &boot_blockd
         return SwitchRomResult::FAILED;
     }
 
-    if (!util::mkdir_recursive(multiboot_path, 0775)) {
+    if (!util::mkdir_recursive(multiboot_path.c_str(), 0775)) {
         LOGE("%s: Failed to create directory: %s",
              multiboot_path.c_str(), strerror(errno));
         return SwitchRomResult::FAILED;
@@ -399,12 +399,12 @@ SwitchRomResult switch_rom(const std::string &id, const std::string &boot_blockd
         f.hash = util::hex_string(digest, SHA512_DIGEST_LENGTH);
 
         if (force_update_checksums) {
-            checksums_update(&props, id, util::base_name(f.image), f.hash);
+            checksums_update(&props, id, util::base_name(f.image.c_str()), f.hash);
         }
 
         // Get expected sha512sum
         ChecksumsGetResult ret = checksums_get(
-                &props, id, util::base_name(f.image), &f.expected_hash);
+                &props, id, util::base_name(f.image.c_str()), &f.expected_hash);
         if (ret == ChecksumsGetResult::MALFORMED) {
             return SwitchRomResult::CHECKSUM_INVALID;
         }
@@ -483,7 +483,7 @@ bool set_kernel(const std::string &id, const std::string &boot_blockdev)
         return false;
     }
 
-    if (!util::mkdir_recursive(multiboot_path, 0775)) {
+    if (!util::mkdir_recursive(multiboot_path.c_str(), 0775)) {
         LOGE("%s: Failed to create directory: %s",
              multiboot_path.c_str(), strerror(errno));
         return false;

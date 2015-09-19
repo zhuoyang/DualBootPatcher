@@ -253,7 +253,7 @@ void RomInstaller::on_cleanup(Installer::ProceedState ret)
 
     std::string context;
     if (util::selinux_lget_context("/data/media/0", &context)
-            && !util::selinux_lset_context(log_file, context)) {
+            && !util::selinux_lset_context(log_file, context.c_str())) {
         LOGE("%s: Failed to set context to %s: %s",
              log_file, context.c_str(), strerror(errno));
     }
@@ -262,7 +262,7 @@ void RomInstaller::on_cleanup(Installer::ProceedState ret)
                 "internal storage.");
 }
 
-static bool backup_sepolicy(const std::string backup_path)
+static bool backup_sepolicy(const char *backup_path)
 {
     if (!util::copy_contents(SELINUX_POLICY_FILE, backup_path)) {
         fprintf(stderr, "Failed to backup current SELinux policy: %s\n",
@@ -273,9 +273,9 @@ static bool backup_sepolicy(const std::string backup_path)
     return true;
 }
 
-static bool restore_sepolicy(const std::string &backup_path)
+static bool restore_sepolicy(const char *backup_path)
 {
-    int fd = open(backup_path.c_str(), O_RDONLY);
+    int fd = open(backup_path, O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "Failed to open backup SELinux policy file: %s\n",
                 strerror(errno));

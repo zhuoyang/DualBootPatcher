@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -27,9 +27,9 @@ namespace util
 {
 
 std::string loopdev_find_unused(void);
-bool loopdev_set_up_device(const std::string &loopdev, const std::string &file,
+bool loopdev_set_up_device(const char *loopdev, const char *file,
                            uint64_t offset, bool ro);
-bool loopdev_remove_device(const std::string &loopdev);
+bool loopdev_remove_device(const char *loopdev);
 
 }
 }

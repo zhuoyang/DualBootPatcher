@@ -38,7 +38,7 @@ struct fstab_rec
     std::string orig_line;
 };
 
-std::vector<fstab_rec> read_fstab(const std::string &path);
+std::vector<fstab_rec> read_fstab(const char *path);
 
 }
 }

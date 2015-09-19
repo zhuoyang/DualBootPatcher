@@ -149,7 +149,7 @@ public:
 
         // _target is the correct parameter here (or pathbuf and
         // COPY_EXCLUDE_TOP_LEVEL flag)
-        if (!util::copy_dir(_curr->fts_accpath, _target,
+        if (!util::copy_dir(_curr->fts_accpath, _target.c_str(),
                             util::COPY_ATTRIBUTES | util::COPY_XATTRS)) {
             _error_msg = util::format("%s: Failed to copy directory: %s",
                                       _curr->fts_path, strerror(errno));
@@ -162,12 +162,12 @@ public:
     virtual int on_reached_directory_post() override
     {
         if (_curr->fts_level == 0) {
-            if (!util::copy_stat(_curr->fts_accpath, _target)) {
+            if (!util::copy_stat(_curr->fts_accpath, _target.c_str())) {
                 LOGE("%s: Failed to copy attributes: %s",
                      _target.c_str(), strerror(errno));
                 return Action::FTS_Fail;
             }
-            if (!util::copy_xattrs(_curr->fts_accpath, _target)) {
+            if (!util::copy_xattrs(_curr->fts_accpath, _target.c_str())) {
                 LOGE("%s: Failed to copy xattrs: %s",
                      _target.c_str(), strerror(errno));
                 return Action::FTS_Fail;
@@ -206,7 +206,7 @@ private:
 
     bool copy_path()
     {
-        if (!util::copy_file(_curr->fts_accpath, _curtgtpath,
+        if (!util::copy_file(_curr->fts_accpath, _curtgtpath.c_str(),
                              util::COPY_ATTRIBUTES | util::COPY_XATTRS)) {
             _error_msg = util::format("%s: Failed to copy file: %s",
                                       _curr->fts_path, strerror(errno));

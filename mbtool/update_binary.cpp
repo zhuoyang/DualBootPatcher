@@ -205,7 +205,7 @@ void RecoveryInstaller::on_cleanup(Installer::ProceedState ret)
 
         std::string context;
         if (util::selinux_lget_context("/data/media/0", &context)
-                && !util::selinux_lset_context(log_file, context)) {
+                && !util::selinux_lset_context(log_file, context.c_str())) {
             LOGE("%s: Failed to set context to %s: %s",
                  log_file, context.c_str(), strerror(errno));
         }

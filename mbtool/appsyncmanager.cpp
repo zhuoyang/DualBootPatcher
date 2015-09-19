@@ -206,7 +206,7 @@ bool AppSyncManager::copy_apk_user_to_shared(const std::string &pkg)
     LOGI("[%s] - User apk:   %s", pkg.c_str(), user_apk.c_str());
     LOGI("[%s] - Shared apk: %s", pkg.c_str(), shared_apk.c_str());
 
-    if (!util::mkdir_parent(shared_apk, 0755)) {
+    if (!util::mkdir_parent(shared_apk.c_str(), 0755)) {
         LOGW("[%s] Failed to create parent directories for %s",
              pkg.c_str(), shared_apk.c_str());
         return false;
@@ -214,7 +214,7 @@ bool AppSyncManager::copy_apk_user_to_shared(const std::string &pkg)
 
     // Make sure we preserve the inode when copying, so all of the hard links to
     // the shared apk are preserved
-    if (!util::copy_contents(user_apk, shared_apk)) {
+    if (!util::copy_contents(user_apk.c_str(), shared_apk.c_str())) {
         LOGW("[%s] Failed to copy contents from %s to %s",
              pkg.c_str(), user_apk.c_str(), shared_apk.c_str());
         return false;
@@ -389,7 +389,7 @@ bool AppSyncManager::wipe_shared_libraries(const std::shared_ptr<Package> &pkg)
         LOGV("[%s] Removed shared libraries at %s",
              pkg->name.c_str(), pkg->native_library_path.c_str());
 
-        if (!util::mkdir_recursive(pkg->native_library_path, 0755)) {
+        if (!util::mkdir_recursive(pkg->native_library_path.c_str(), 0755)) {
             LOGW("[%s] %s: Failed to create directory: %s", pkg->name.c_str(),
                  pkg->native_library_path.c_str(), strerror(errno));
             return false;
@@ -413,17 +413,17 @@ bool AppSyncManager::wipe_shared_libraries(const std::shared_ptr<Package> &pkg)
 
 bool AppSyncManager::initialize_directories()
 {
-    if (!util::mkdir_recursive(_as_app_dir, 0751) && errno != EEXIST) {
+    if (!util::mkdir_recursive(_as_app_dir.c_str(), 0751) && errno != EEXIST) {
         LOGE("%s: Failed to create directory: %s", _as_app_dir.c_str(),
              strerror(errno));
         return false;
     }
-    if (!util::mkdir_recursive(_as_app_asec_dir, 0751) && errno != EEXIST) {
+    if (!util::mkdir_recursive(_as_app_asec_dir.c_str(), 0751) && errno != EEXIST) {
         LOGW("%s: Failed to create directory: %s", _as_app_asec_dir.c_str(),
              strerror(errno));
         return false;
     }
-    if (!util::mkdir_recursive(_as_data_dir, 0751) && errno != EEXIST) {
+    if (!util::mkdir_recursive(_as_data_dir.c_str(), 0751) && errno != EEXIST) {
         LOGW("%s: Failed to create directory: %s", _as_data_dir.c_str(),
              strerror(errno));
         return false;
@@ -436,7 +436,7 @@ bool AppSyncManager::create_shared_data_directory(const std::string &pkg, uid_t 
 {
     std::string data_path = get_shared_data_path(pkg);
 
-    if (!util::mkdir_recursive(data_path, 0751)) {
+    if (!util::mkdir_recursive(data_path.c_str(), 0751)) {
         LOGW("[%s] %s: Failed to create directory: %s",
              pkg.c_str(), data_path.c_str(), strerror(errno));
         return false;
@@ -449,7 +449,7 @@ bool AppSyncManager::create_shared_data_directory(const std::string &pkg, uid_t 
         return false;
     }
 
-    if (!util::chown(data_path, uid, uid, util::CHOWN_RECURSIVE)) {
+    if (!util::chown(data_path.c_str(), uid, uid, util::CHOWN_RECURSIVE)) {
         LOGW("[%s] %s: Failed to chown: %s",
              pkg.c_str(), data_path.c_str(), strerror(errno));
         return false;
@@ -466,7 +466,7 @@ bool AppSyncManager::fix_shared_apk_permissions()
 bool AppSyncManager::fix_shared_data_permissions()
 {
     if (!util::selinux_lset_context_recursive(
-            _as_data_dir, APP_DATA_SELINUX_CONTEXT)) {
+            _as_data_dir.c_str(), APP_DATA_SELINUX_CONTEXT)) {
         LOGW("%s: Failed to set context recursively to %s: %s",
              _as_data_dir.c_str(), APP_DATA_SELINUX_CONTEXT, strerror(errno));
         return false;
@@ -487,12 +487,12 @@ bool AppSyncManager::mount_shared_directory(const std::string &pkg, uid_t uid)
     target += "/";
     target += pkg;
 
-    if (!util::mkdir_recursive(target, 0755)) {
+    if (!util::mkdir_recursive(target.c_str(), 0755)) {
         LOGW("[%s] %s: Failed to create directory: %s",
              pkg.c_str(), target.c_str(), strerror(errno));
         return false;
     }
-    if (!util::chown(target, uid, uid, util::CHOWN_RECURSIVE)) {
+    if (!util::chown(target.c_str(), uid, uid, util::CHOWN_RECURSIVE)) {
         LOGW("[%s] %s: Failed to chown: %s",
              pkg.c_str(), target.c_str(), strerror(errno));
         return false;

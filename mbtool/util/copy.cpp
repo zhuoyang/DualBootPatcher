@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -64,12 +64,12 @@ bool copy_data_fd(int fd_source, int fd_target)
     return nread == 0;
 }
 
-static bool copy_data(const std::string &source, const std::string &target)
+static bool copy_data(const char *source, const char *target)
 {
     int fd_source = -1;
     int fd_target = -1;
 
-    fd_source = open(source.c_str(), O_RDONLY);
+    fd_source = open(source, O_RDONLY);
     if (fd_source < 0) {
         return false;
     }
@@ -78,7 +78,7 @@ static bool copy_data(const std::string &source, const std::string &target)
         close(fd_source);
     });
 
-    fd_target = open(target.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0666);
+    fd_target = open(target, O_WRONLY | O_CREAT | O_EXCL, 0666);
     if (fd_target < 0) {
         return false;
     }
@@ -94,7 +94,7 @@ static bool copy_data(const std::string &source, const std::string &target)
     return true;
 }
 
-bool copy_xattrs(const std::string &source, const std::string &target)
+bool copy_xattrs(const char *source, const char *target)
 {
     ssize_t size;
     std::vector<char> names;
@@ -103,24 +103,24 @@ bool copy_xattrs(const std::string &source, const std::string &target)
     std::vector<char> value;
 
     // xattr names are in a NULL-separated list
-    size = llistxattr(source.c_str(), nullptr, 0);
+    size = llistxattr(source, nullptr, 0);
     if (size < 0) {
         if (errno == ENOTSUP) {
-            LOGV("%s: xattrs not supported on filesystem", source.c_str());
+            LOGV("%s: xattrs not supported on filesystem", source);
             return true;
         } else {
             LOGE("%s: Failed to list xattrs: %s",
-                 source.c_str(), strerror(errno));
+                 source, strerror(errno));
             return false;
         }
     }
 
     names.resize(size + 1);
 
-    size = llistxattr(source.c_str(), names.data(), size);
+    size = llistxattr(source, names.data(), size);
     if (size < 0) {
         LOGE("%s: Failed to list xattrs on second try: %s",
-             source.c_str(), strerror(errno));
+             source, strerror(errno));
         return false;
     } else {
         names[size] = '\0';
@@ -132,29 +132,29 @@ bool copy_xattrs(const std::string &source, const std::string &target)
             continue;
         }
 
-        size = lgetxattr(source.c_str(), name, nullptr, 0);
+        size = lgetxattr(source, name, nullptr, 0);
         if (size < 0) {
             LOGW("%s: Failed to get attribute '%s': %s",
-                 source.c_str(), name, strerror(errno));
+                 source, name, strerror(errno));
             continue;
         }
 
         value.resize(size);
 
-        size = lgetxattr(source.c_str(), name, value.data(), size);
+        size = lgetxattr(source, name, value.data(), size);
         if (size < 0) {
             LOGW("%s: Failed to get attribute '%s' on second try: %s",
-                 source.c_str(), name, strerror(errno));
+                 source, name, strerror(errno));
             continue;
         }
 
-        if (lsetxattr(target.c_str(), name, value.data(), size, 0) < 0) {
+        if (lsetxattr(target, name, value.data(), size, 0) < 0) {
             if (errno == ENOTSUP) {
-                LOGV("%s: xattrs not supported on filesystem", target.c_str());
+                LOGV("%s: xattrs not supported on filesystem", target);
                 break;
             } else {
                 LOGE("%s: Failed to set xattrs: %s",
-                     target.c_str(), strerror(errno));
+                     target, strerror(errno));
                 return false;
             }
         }
@@ -163,24 +163,24 @@ bool copy_xattrs(const std::string &source, const std::string &target)
     return true;
 }
 
-bool copy_stat(const std::string &source, const std::string &target)
+bool copy_stat(const char *source, const char *target)
 {
     struct stat sb;
 
-    if (lstat(source.c_str(), &sb) < 0) {
-        LOGE("%s: Failed to stat: %s", source.c_str(), strerror(errno));
+    if (lstat(source, &sb) < 0) {
+        LOGE("%s: Failed to stat: %s", source, strerror(errno));
         return false;
     }
 
-    if (lchown(target.c_str(), sb.st_uid, sb.st_gid) < 0) {
-        LOGE("%s: Failed to chown: %s", target.c_str(), strerror(errno));
+    if (lchown(target, sb.st_uid, sb.st_gid) < 0) {
+        LOGE("%s: Failed to chown: %s", target, strerror(errno));
         return false;
     }
 
     if (!S_ISLNK(sb.st_mode)) {
-        if (chmod(target.c_str(), sb.st_mode & (S_ISUID | S_ISGID | S_ISVTX
-                                              | S_IRWXU | S_IRWXG | S_IRWXO)) < 0) {
-            LOGE("%s: Failed to chmod: %s", target.c_str(), strerror(errno));
+        if (chmod(target, sb.st_mode & (S_ISUID | S_ISGID | S_ISVTX
+                                      | S_IRWXU | S_IRWXG | S_IRWXO)) < 0) {
+            LOGE("%s: Failed to chmod: %s", target, strerror(errno));
             return false;
         }
     }
@@ -188,12 +188,12 @@ bool copy_stat(const std::string &source, const std::string &target)
     return true;
 }
 
-bool copy_contents(const std::string &source, const std::string &target)
+bool copy_contents(const char *source, const char *target)
 {
     int fd_source = -1;
     int fd_target = -1;
 
-    if ((fd_source = open(source.c_str(), O_RDONLY)) < 0) {
+    if ((fd_source = open(source, O_RDONLY)) < 0) {
         return false;
     }
 
@@ -201,7 +201,7 @@ bool copy_contents(const std::string &source, const std::string &target)
         close(fd_source);
     });
 
-    if ((fd_target = open(target.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
+    if ((fd_target = open(target, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
         return false;
     }
 
@@ -216,7 +216,7 @@ bool copy_contents(const std::string &source, const std::string &target)
     return true;
 }
 
-bool copy_file(const std::string &source, const std::string &target, int flags)
+bool copy_file(const char *source, const char *target, int flags)
 {
     mode_t old_umask = umask(0);
 
@@ -224,41 +224,41 @@ bool copy_file(const std::string &source, const std::string &target, int flags)
         umask(old_umask);
     });
 
-    if (unlink(target.c_str()) < 0 && errno != ENOENT) {
+    if (unlink(target) < 0 && errno != ENOENT) {
         LOGE("%s: Failed to remove old file: %s",
-             target.c_str(), strerror(errno));
+             target, strerror(errno));
         return false;
     }
 
     struct stat sb;
     if (((flags & COPY_FOLLOW_SYMLINKS)
-            ? stat : lstat)(source.c_str(), &sb) < 0) {
+            ? stat : lstat)(source, &sb) < 0) {
         LOGE("%s: Failed to stat: %s",
-             source.c_str(), strerror(errno));
+             source, strerror(errno));
         return false;
     }
 
     switch (sb.st_mode & S_IFMT) {
     case S_IFBLK:
-        if (mknod(target.c_str(), S_IFBLK | S_IRWXU, sb.st_rdev) < 0) {
+        if (mknod(target, S_IFBLK | S_IRWXU, sb.st_rdev) < 0) {
             LOGW("%s: Failed to create block device: %s",
-                 target.c_str(), strerror(errno));
+                 target, strerror(errno));
             return false;
         }
         break;
 
     case S_IFCHR:
-        if (mknod(target.c_str(), S_IFCHR | S_IRWXU, sb.st_rdev) < 0) {
+        if (mknod(target, S_IFCHR | S_IRWXU, sb.st_rdev) < 0) {
             LOGW("%s: Failed to create character device: %s",
-                 target.c_str(), strerror(errno));
+                 target, strerror(errno));
             return false;
         }
         break;
 
     case S_IFIFO:
-        if (mkfifo(target.c_str(), S_IRWXU) < 0) {
+        if (mkfifo(target, S_IRWXU) < 0) {
             LOGW("%s: Failed to create FIFO pipe: %s",
-                 target.c_str(), strerror(errno));
+                 target, strerror(errno));
             return false;
         }
         break;
@@ -268,13 +268,13 @@ bool copy_file(const std::string &source, const std::string &target, int flags)
             std::string symlink_path;
             if (!read_link(source, &symlink_path)) {
                 LOGW("%s: Failed to read symlink path: %s",
-                     source.c_str(), strerror(errno));
+                     source, strerror(errno));
                 return false;
             }
 
-            if (symlink(symlink_path.c_str(), target.c_str()) < 0) {
+            if (symlink(symlink_path.c_str(), target) < 0) {
                 LOGW("%s: Failed to create symlink: %s",
-                     target.c_str(), strerror(errno));
+                     target, strerror(errno));
                 return false;
             }
 
@@ -286,18 +286,18 @@ bool copy_file(const std::string &source, const std::string &target, int flags)
     case S_IFREG:
         if (!copy_data(source, target)) {
             LOGE("%s: Failed to copy data: %s",
-                 target.c_str(), strerror(errno));
+                 target, strerror(errno));
             return false;
         }
         break;
 
     case S_IFSOCK:
-        LOGE("%s: Cannot copy socket", target.c_str());
+        LOGE("%s: Cannot copy socket", target);
         errno = EINVAL;
         return false;
 
     case S_IFDIR:
-        LOGE("%s: Cannot copy directory", target.c_str());
+        LOGE("%s: Cannot copy directory", target);
         errno = EINVAL;
         return false;
     }
@@ -305,13 +305,13 @@ bool copy_file(const std::string &source, const std::string &target, int flags)
     if ((flags & COPY_ATTRIBUTES)
             && !copy_stat(source, target)) {
         LOGE("%s: Failed to copy attributes: %s",
-             target.c_str(), strerror(errno));
+             target, strerror(errno));
         return false;
     }
     if ((flags & COPY_XATTRS)
             && !copy_xattrs(source, target)) {
         LOGE("%s: Failed to copy xattrs: %s",
-             target.c_str(), strerror(errno));
+             target, strerror(errno));
         return false;
     }
 
@@ -460,7 +460,7 @@ public:
         }
 
         // Copy file contents
-        if (!copy_data(_curr->fts_accpath, _curtgtpath)) {
+        if (!copy_data(_curr->fts_accpath, _curtgtpath.c_str())) {
             _error_msg = format("%s: Failed to copy data: %s",
                                 _curtgtpath.c_str(), strerror(errno));
             LOGW("%s", _error_msg.c_str());
@@ -613,7 +613,7 @@ private:
     bool cp_attrs()
     {
         if ((_copyflags & COPY_ATTRIBUTES)
-                && !copy_stat(_curr->fts_accpath, _curtgtpath)) {
+                && !copy_stat(_curr->fts_accpath, _curtgtpath.c_str())) {
             _error_msg = format("%s: Failed to copy attributes: %s",
                                 _curtgtpath.c_str(), strerror(errno));
             LOGW("%s", _error_msg.c_str());
@@ -625,7 +625,7 @@ private:
     bool cp_xattrs()
     {
         if ((_copyflags & COPY_XATTRS)
-                && !copy_xattrs(_curr->fts_accpath, _curtgtpath)) {
+                && !copy_xattrs(_curr->fts_accpath, _curtgtpath.c_str())) {
             _error_msg = format("%s: Failed to copy xattrs: %s",
                                 _curtgtpath.c_str(), strerror(errno));
             LOGW("%s", _error_msg.c_str());
@@ -637,7 +637,7 @@ private:
 
 
 // Copy as much as possible
-bool copy_dir(const std::string &source, const std::string &target, int flags)
+bool copy_dir(const char *source, const char *target, int flags)
 {
     mode_t old_umask = umask(0);
 

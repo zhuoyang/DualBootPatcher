@@ -86,7 +86,7 @@ private:
 };
 
 
-bool chmod_recursive(const std::string &path, mode_t perms)
+bool chmod_recursive(const char *path, mode_t perms)
 {
     RecursiveChmod fts(path, perms);
     return fts.run();

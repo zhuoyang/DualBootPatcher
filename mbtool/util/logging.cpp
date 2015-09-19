@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -156,8 +156,13 @@ void KmsgLogger::log(LogLevel prio, const char *fmt, va_list ap)
         break;
     }
 
-    std::string new_fmt = format("%s" LOG_TAG ": %s\n", kprio, fmt);
-    std::size_t len = vsnprintf(_buf, KMSG_BUF_SIZE, new_fmt.c_str(), ap);
+    char *new_fmt = nullptr;
+    if (asprintf(&new_fmt, "%s" LOG_TAG ": %s\n", kprio, fmt) < 0) {
+        // Failed to allocate memory
+        return;
+    }
+
+    std::size_t len = vsnprintf(_buf, KMSG_BUF_SIZE, new_fmt, ap);
 
     // Make user aware of any truncation
     if (len >= KMSG_BUF_SIZE) {
@@ -167,6 +172,8 @@ void KmsgLogger::log(LogLevel prio, const char *fmt, va_list ap)
 
     write(_fd, _buf, strlen(_buf));
     //vdprintf(_fd, new_fmt.c_str(), ap);
+
+    free(new_fmt);
 }
 
 

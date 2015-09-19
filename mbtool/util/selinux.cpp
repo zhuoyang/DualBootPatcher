@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -76,23 +76,23 @@ private:
     bool set_context()
     {
         if (_follow_symlinks) {
-            return selinux_set_context(_curr->fts_accpath, _context);
+            return selinux_set_context(_curr->fts_accpath, _context.c_str());
         } else {
-            return selinux_lset_context(_curr->fts_accpath, _context);
+            return selinux_lset_context(_curr->fts_accpath, _context.c_str());
         }
     }
 };
 
-bool selinux_read_policy(const std::string &path, policydb_t *pdb)
+bool selinux_read_policy(const char *path, policydb_t *pdb)
 {
     struct policy_file pf;
     struct stat sb;
     void *map;
     int fd;
 
-    fd = open(path.c_str(), O_RDONLY);
+    fd = open(path, O_RDONLY);
     if (fd < 0) {
-        LOGE("Failed to open %s: %s", path.c_str(), strerror(errno));
+        LOGE("Failed to open %s: %s", path, strerror(errno));
         return false;
     }
 
@@ -101,13 +101,13 @@ bool selinux_read_policy(const std::string &path, policydb_t *pdb)
     });
 
     if (fstat(fd, &sb) < 0) {
-        LOGE("Failed to stat %s: %s", path.c_str(), strerror(errno));
+        LOGE("Failed to stat %s: %s", path, strerror(errno));
         return false;
     }
 
     map = mmap(nullptr, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (map == MAP_FAILED) {
-        LOGE("Failed to mmap %s: %s", path.c_str(), strerror(errno));
+        LOGE("Failed to mmap %s: %s", path, strerror(errno));
         return false;
     }
 
@@ -130,7 +130,7 @@ bool selinux_read_policy(const std::string &path, policydb_t *pdb)
 // /sys/fs/selinux/load requires the entire policy to be written in a single
 // write(2) call.
 // See: http://marc.info/?l=selinux&m=141882521027239&w=2
-bool selinux_write_policy(const std::string &path, policydb_t *pdb)
+bool selinux_write_policy(const char *path, policydb_t *pdb)
 {
     void *data;
     size_t len;
@@ -154,9 +154,9 @@ bool selinux_write_policy(const std::string &path, policydb_t *pdb)
         free(data);
     });
 
-    fd = open(path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0644);
+    fd = open(path, O_CREAT | O_TRUNC | O_RDWR, 0644);
     if (fd < 0) {
-        LOGE("Failed to open %s: %s", path.c_str(), strerror(errno));
+        LOGE("Failed to open %s: %s", path, strerror(errno));
         return false;
     }
 
@@ -165,7 +165,7 @@ bool selinux_write_policy(const std::string &path, policydb_t *pdb)
     });
 
     if (write(fd, data, len) < 0) {
-        LOGE("Failed to write to %s: %s", path.c_str(), strerror(errno));
+        LOGE("Failed to write to %s: %s", path, strerror(errno));
         return false;
     }
 
@@ -187,29 +187,28 @@ void selinux_make_all_permissive(policydb_t *pdb)
     }
 }
 
-bool selinux_make_permissive(policydb_t *pdb, const std::string &type_str)
+bool selinux_make_permissive(policydb_t *pdb, const char *type_str)
 {
     type_datum_t *type;
 
     type = (type_datum_t *) hashtab_search(
-            pdb->p_types.table, (hashtab_key_t) type_str.c_str());
+            pdb->p_types.table, (hashtab_key_t) type_str);
     if (!type) {
-        LOGV("Type %s not found in policy", type_str.c_str());
+        LOGV("Type %s not found in policy", type_str);
         return false;
     }
 
     if (ebitmap_get_bit(&pdb->permissive_map, type->s.value)) {
-        LOGV("Type %s is already permissive", type_str.c_str());
+        LOGV("Type %s is already permissive", type_str);
         return true;
     }
 
     if (ebitmap_set_bit(&pdb->permissive_map, type->s.value, 1) < 0) {
-        LOGE("Failed to set bit for type %s in the permissive map",
-             type_str.c_str());
+        LOGE("Failed to set bit for type %s in the permissive map", type_str);
         return false;
     }
 
-    LOGD("Type %s is now permissive", type_str.c_str());
+    LOGD("Type %s is now permissive", type_str);
 
     return true;
 }
@@ -219,10 +218,10 @@ bool selinux_make_permissive(policydb_t *pdb, const std::string &type_str)
 // See the following commit about the hashtab_key_t casts:
 // https://github.com/TresysTechnology/setools/commit/2994d1ca1da9e6f25f082c0dd1a49b5f958bd2ca
 bool selinux_add_rule(policydb_t *pdb,
-                      const std::string &source_str,
-                      const std::string &target_str,
-                      const std::string &class_str,
-                      const std::string &perm_str)
+                      const char *source_str,
+                      const char *target_str,
+                      const char *class_str,
+                      const char *perm_str)
 {
     type_datum_t *source, *target;
     class_datum_t *clazz;
@@ -231,37 +230,37 @@ bool selinux_add_rule(policydb_t *pdb,
     avtab_key_t key;
 
     source = (type_datum_t *) hashtab_search(
-            pdb->p_types.table, (hashtab_key_t) source_str.c_str());
+            pdb->p_types.table, (hashtab_key_t) source_str);
     if (!source) {
-        LOGE("Source type %s does not exist", source_str.c_str());
+        LOGE("Source type %s does not exist", source_str);
         return false;
     }
     target = (type_datum_t *) hashtab_search(
-            pdb->p_types.table, (hashtab_key_t) target_str.c_str());
+            pdb->p_types.table, (hashtab_key_t) target_str);
     if (!target) {
-        LOGE("Target type %s does not exist", target_str.c_str());
+        LOGE("Target type %s does not exist", target_str);
         return false;
     }
     clazz = (class_datum_t *) hashtab_search(
-            pdb->p_classes.table, (hashtab_key_t) class_str.c_str());
+            pdb->p_classes.table, (hashtab_key_t) class_str);
     if (!clazz) {
-        LOGE("Class %s does not exist", class_str.c_str());
+        LOGE("Class %s does not exist", class_str);
         return false;
     }
     perm = (perm_datum_t *) hashtab_search(
-            clazz->permissions.table, (hashtab_key_t) perm_str.c_str());
+            clazz->permissions.table, (hashtab_key_t) perm_str);
     if (!perm) {
         if (clazz->comdatum == nullptr) {
             LOGE("Perm %s does not exist in class %s",
-                 perm_str.c_str(), class_str.c_str());
+                 perm_str, class_str);
             return false;
         }
         perm = (perm_datum_t *) hashtab_search(
                 clazz->comdatum->permissions.table,
-                (hashtab_key_t) perm_str.c_str());
+                (hashtab_key_t) perm_str);
         if (!perm) {
             LOGE("Perm %s does not exist in class %s",
-                 perm_str.c_str(), class_str.c_str());
+                 perm_str, class_str);
             return false;
         }
     }
@@ -291,30 +290,28 @@ bool selinux_add_rule(policydb_t *pdb,
 
     if (exists) {
         LOGD("Rule already exists: \"allow %s %s:%s %s;\"",
-             source_str.c_str(), target_str.c_str(), class_str.c_str(),
-             perm_str.c_str());
+             source_str, target_str, class_str, perm_str);
     } else {
         LOGD("Added rule: \"allow %s %s:%s %s;\"",
-             source_str.c_str(), target_str.c_str(), class_str.c_str(),
-             perm_str.c_str());
+             source_str, target_str, class_str, perm_str);
     }
 
     return true;
 }
 
-bool selinux_get_context(const std::string &path, std::string *context)
+bool selinux_get_context(const char *path, std::string *context)
 {
     ssize_t size;
     std::vector<char> value;
 
-    size = getxattr(path.c_str(), "security.selinux", nullptr, 0);
+    size = getxattr(path, "security.selinux", nullptr, 0);
     if (size < 0) {
         return false;
     }
 
     value.resize(size);
 
-    size = getxattr(path.c_str(), "security.selinux", value.data(), size);
+    size = getxattr(path, "security.selinux", value.data(), size);
     if (size < 0) {
         return false;
     }
@@ -325,19 +322,19 @@ bool selinux_get_context(const std::string &path, std::string *context)
     return true;
 }
 
-bool selinux_lget_context(const std::string &path, std::string *context)
+bool selinux_lget_context(const char *path, std::string *context)
 {
     ssize_t size;
     std::vector<char> value;
 
-    size = lgetxattr(path.c_str(), "security.selinux", nullptr, 0);
+    size = lgetxattr(path, "security.selinux", nullptr, 0);
     if (size < 0) {
         return false;
     }
 
     value.resize(size);
 
-    size = lgetxattr(path.c_str(), "security.selinux", value.data(), size);
+    size = lgetxattr(path, "security.selinux", value.data(), size);
     if (size < 0) {
         return false;
     }
@@ -348,26 +345,26 @@ bool selinux_lget_context(const std::string &path, std::string *context)
     return true;
 }
 
-bool selinux_set_context(const std::string &path, const std::string &context)
+bool selinux_set_context(const char *path, const char *context)
 {
-    return setxattr(path.c_str(), "security.selinux",
-                    context.c_str(), context.size() + 1, 0) == 0;
+    return setxattr(path, "security.selinux",
+                    context, strlen(context) + 1, 0) == 0;
 }
 
-bool selinux_lset_context(const std::string &path, const std::string &context)
+bool selinux_lset_context(const char *path, const char *context)
 {
-    return lsetxattr(path.c_str(), "security.selinux",
-                     context.c_str(), context.size() + 1, 0) == 0;
+    return lsetxattr(path, "security.selinux",
+                     context, strlen(context) + 1, 0) == 0;
 }
 
-bool selinux_set_context_recursive(const std::string &path,
-                                   const std::string &context)
+bool selinux_set_context_recursive(const char *path,
+                                   const char *context)
 {
     return RecursiveSetContext(path, context, true).run();
 }
 
-bool selinux_lset_context_recursive(const std::string &path,
-                                    const std::string &context)
+bool selinux_lset_context_recursive(const char *path,
+                                    const char *context)
 {
     return RecursiveSetContext(path, context, false).run();
 }

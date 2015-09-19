@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -45,7 +45,7 @@ namespace util
 
 typedef std::unique_ptr<std::FILE, int (*)(std::FILE *)> file_ptr;
 
-bool is_mounted(const std::string &mountpoint)
+bool is_mounted(const char *mountpoint)
 {
     file_ptr fp(setmntent("/proc/mounts", "r"), endmntent);
     if (!fp) {
@@ -67,7 +67,7 @@ bool is_mounted(const std::string &mountpoint)
     return found;
 }
 
-bool unmount_all(const std::string &dir)
+bool unmount_all(const char *dir)
 {
     int failed;
     struct mntent ent;
@@ -121,36 +121,36 @@ bool unmount_all(const std::string &dir)
  *
  * \return True if bind mount is successful. False, otherwise.
  */
-bool bind_mount(const std::string &source, mode_t source_perms,
-                const std::string &target, mode_t target_perms)
+bool bind_mount(const char *source, mode_t source_perms,
+                const char *target, mode_t target_perms)
 {
     struct stat sb;
 
-    if (stat(source.c_str(), &sb) < 0
+    if (stat(source, &sb) < 0
             && !mkdir_recursive(source, source_perms)) {
-        LOGE("Failed to create %s: %s", source.c_str(), strerror(errno));
+        LOGE("Failed to create %s: %s", source, strerror(errno));
         return false;
     }
 
-    if (stat(target.c_str(), &sb) < 0
+    if (stat(target, &sb) < 0
             && !mkdir_recursive(target, target_perms)) {
-        LOGE("Failed to create %s: %s", target.c_str(), strerror(errno));
+        LOGE("Failed to create %s: %s", target, strerror(errno));
         return false;
     }
 
-    if (chmod(source.c_str(), source_perms) < 0) {
-        LOGE("Failed to chmod %s: %s", source.c_str(), strerror(errno));
+    if (chmod(source, source_perms) < 0) {
+        LOGE("Failed to chmod %s: %s", source, strerror(errno));
         return false;
     }
 
-    if (chmod(target.c_str(), target_perms) < 0) {
-        LOGE("Failed to chmod %s: %s", target.c_str(), strerror(errno));
+    if (chmod(target, target_perms) < 0) {
+        LOGE("Failed to chmod %s: %s", target, strerror(errno));
         return false;
     }
 
-    if (::mount(source.c_str(), target.c_str(), "", MS_BIND, "") < 0) {
+    if (::mount(source, target, "", MS_BIND, "") < 0) {
         LOGE("Failed to bind mount %s to %s: %s",
-             source.c_str(), target.c_str(), strerror(errno));
+             source, target, strerror(errno));
         return false;
     }
 
@@ -197,14 +197,14 @@ bool mount(const char *source, const char *target, const char *fstype,
         LOGD("Assigning %s to loop device %s", source, loopdev.c_str());
 
         if (!util::loopdev_set_up_device(
-                loopdev, source, 0, mount_flags & MS_RDONLY)) {
+                loopdev.c_str(), source, 0, mount_flags & MS_RDONLY)) {
             LOGE("Failed to set up loop device %s: %s",
                  loopdev.c_str(), strerror(errno));
             return false;
         }
 
         if (::mount(loopdev.c_str(), target, fstype, mount_flags, data) < 0) {
-            util::loopdev_remove_device(loopdev);
+            util::loopdev_remove_device(loopdev.c_str());
             return false;
         }
 
@@ -257,7 +257,7 @@ bool umount(const char *target)
                 && S_ISBLK(sb.st_mode) && major(sb.st_rdev) == 7) {
             // If the source path is a loop block device, then disassociate it
             // from the image
-            loopdev_remove_device(source);
+            loopdev_remove_device(source.c_str());
         }
     }
 

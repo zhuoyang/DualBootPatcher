@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -19,8 +19,6 @@
 
 #pragma once
 
-#include <string>
-
 #include <sys/types.h>
 
 namespace mb
@@ -34,11 +32,11 @@ enum ChownFlags : int
     CHOWN_RECURSIVE       = 0x2
 };
 
-bool chown(const std::string &path,
-           const std::string &user,
-           const std::string &group,
+bool chown(const char *path,
+           const char *user,
+           const char *group,
            int flags);
-bool chown(const std::string &path,
+bool chown(const char *path,
            uid_t user,
            gid_t group,
            int flags);

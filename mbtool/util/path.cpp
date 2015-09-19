@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -48,34 +48,34 @@ std::string get_cwd()
     return ret;
 }
 
-std::string dir_name(const std::string &path)
+std::string dir_name(const char *path)
 {
-    std::vector<char> buf(path.begin(), path.end());
+    std::vector<char> buf(path, path + strlen(path));
     buf.push_back('\0');
 
     char *ptr = dirname(buf.data());
     return std::string(ptr);
 }
 
-std::string base_name(const std::string &path)
+std::string base_name(const char *path)
 {
-    std::vector<char> buf(path.begin(), path.end());
+    std::vector<char> buf(path, path + strlen(path));
     buf.push_back('\0');
 
     char *ptr = basename(buf.data());
     return std::string(ptr);
 }
 
-std::string real_path(const std::string &path)
+std::string real_path(const char *path)
 {
     char actual_path[PATH_MAX + 1];
-    if (!realpath(path.c_str(), actual_path)) {
+    if (!realpath(path, actual_path)) {
         return std::string();
     }
     return std::string(actual_path);
 }
 
-bool read_link(const std::string &path, std::string *out)
+bool read_link(const char *path, std::string *out)
 {
     std::vector<char> buf;
     ssize_t len;
@@ -83,7 +83,7 @@ bool read_link(const std::string &path, std::string *out)
     buf.resize(64);
 
     for (;;) {
-        len = readlink(path.c_str(), buf.data(), buf.size() - 1);
+        len = readlink(path, buf.data(), buf.size() - 1);
         if (len < 0) {
             return false;
         } else if ((size_t) len == buf.size() - 1) {
@@ -98,35 +98,35 @@ bool read_link(const std::string &path, std::string *out)
     return true;
 }
 
-bool inodes_equal(const std::string &path1, const std::string &path2)
+bool inodes_equal(const char *path1, const char *path2)
 {
     struct stat sb1;
     struct stat sb2;
 
-    if (lstat(path1.c_str(), &sb1) < 0) {
-        LOGE("%s: Failed to stat: %s", path1.c_str(), strerror(errno));
+    if (lstat(path1, &sb1) < 0) {
+        LOGE("%s: Failed to stat: %s", path1, strerror(errno));
         return false;
     }
 
-    if (lstat(path2.c_str(), &sb2) < 0) {
-        LOGE("%s: Failed to stat: %s", path2.c_str(), strerror(errno));
+    if (lstat(path2, &sb2) < 0) {
+        LOGE("%s: Failed to stat: %s", path2, strerror(errno));
         return false;
     }
 
     return sb1.st_dev == sb2.st_dev && sb1.st_ino == sb2.st_ino;
 }
 
-std::vector<std::string> path_split(const std::string &path)
+std::vector<std::string> path_split(const char *path)
 {
     char *p;
     char *save_ptr;
-    std::vector<char> copy(path.begin(), path.end());
+    std::vector<char> copy(path, path + strlen(path));
     copy.push_back('\0');
 
     std::vector<std::string> split;
 
     // For absolute paths
-    if (!path.empty() && path[0] == '/') {
+    if (*path && path[0] == '/') {
         split.push_back(std::string());
     }
 

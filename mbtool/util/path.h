@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -28,12 +28,12 @@ namespace util
 {
 
 std::string get_cwd();
-std::string dir_name(const std::string &path);
-std::string base_name(const std::string &path);
-std::string real_path(const std::string &path);
-bool read_link(const std::string &path, std::string *out);
-bool inodes_equal(const std::string &path1, const std::string &path2);
-std::vector<std::string> path_split(const std::string &path);
+std::string dir_name(const char *path);
+std::string base_name(const char *path);
+std::string real_path(const char *path);
+bool read_link(const char *path, std::string *out);
+bool inodes_equal(const char *path1, const char *path2);
+std::vector<std::string> path_split(const char *path);
 std::string path_join(const std::vector<std::string> &components);
 
 }

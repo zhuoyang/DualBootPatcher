@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -34,15 +34,15 @@ namespace mb
 namespace util
 {
 
-static bool chown_internal(const std::string &path,
+static bool chown_internal(const char *path,
                            uid_t uid,
                            gid_t gid,
                            bool follow_symlinks)
 {
     if (follow_symlinks) {
-        return ::chown(path.c_str(), uid, gid) == 0;
+        return ::chown(path, uid, gid) == 0;
     } else {
-        return ::lchown(path.c_str(), uid, gid) == 0;
+        return ::lchown(path, uid, gid) == 0;
     }
 }
 
@@ -95,16 +95,16 @@ private:
 };
 
 // WARNING: Not thread safe! Android doesn't have getpwnam_r() or getgrnam_r()
-bool chown(const std::string &path,
-           const std::string &user,
-           const std::string &group,
+bool chown(const char *path,
+           const char *user,
+           const char *group,
            int flags)
 {
     uid_t uid;
     gid_t gid;
 
     errno = 0;
-    struct passwd *pw = getpwnam(user.c_str());
+    struct passwd *pw = getpwnam(user);
     if (!pw) {
         if (!errno) {
             errno = EINVAL; // User does not exist
@@ -115,7 +115,7 @@ bool chown(const std::string &path,
     }
 
     errno = 0;
-    struct group *gr = getgrnam(group.c_str());
+    struct group *gr = getgrnam(group);
     if (!gr) {
         if (!errno) {
             errno = EINVAL; // Group does not exist
@@ -128,7 +128,7 @@ bool chown(const std::string &path,
     return chown(path, uid, gid, flags);
 }
 
-bool chown(const std::string &path,
+bool chown(const char *path,
            uid_t uid,
            gid_t gid,
            int flags)

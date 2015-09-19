@@ -19,13 +19,11 @@
 
 #pragma once
 
-#include <string>
-
 namespace mb
 {
 
-bool patch_sepolicy(const std::string &source,
-                    const std::string &target);
+bool patch_sepolicy(const char *source,
+                    const char *target);
 bool patch_loaded_sepolicy();
 int sepolpatch_main(int argc, char *argv[]);
 

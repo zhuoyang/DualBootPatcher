@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <string>
 #include <sys/types.h>
 
 namespace mb
@@ -27,7 +26,7 @@ namespace mb
 namespace util
 {
 
-bool chmod_recursive(const std::string &path, mode_t perms);
+bool chmod_recursive(const char *path, mode_t perms);
 
 }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -32,21 +32,21 @@ namespace mb
 namespace util
 {
 
-bool mkdir_recursive(const std::string &dir, mode_t mode)
+bool mkdir_recursive(const char *dir, mode_t mode)
 {
     char *p;
     char *save_ptr;
     std::vector<char> temp;
     std::vector<char> copy;
 
-    if (dir.empty()) {
+    if (!*dir) {
         errno = EINVAL;
         return false;
     }
 
-    copy.assign(dir.begin(), dir.end());
+    copy.assign(dir, dir + strlen(dir));
     copy.push_back('\0');
-    temp.resize(dir.size() + 2);
+    temp.resize(strlen(dir) + 2);
     temp[0] = '\0';
 
     if (dir[0] == '/') {
@@ -68,9 +68,9 @@ bool mkdir_recursive(const std::string &dir, mode_t mode)
     return true;
 }
 
-bool mkdir_parent(const std::string &path, mode_t perms)
+bool mkdir_parent(const char *path, mode_t perms)
 {
-    if (path.empty()) {
+    if (!*path) {
         errno = EINVAL;
         return false;
     }
@@ -78,7 +78,7 @@ bool mkdir_parent(const std::string &path, mode_t perms)
     struct stat sb;
     std::string dir = dir_name(path);
 
-    if (!mkdir_recursive(dir, perms) && errno != EEXIST) {
+    if (!mkdir_recursive(dir.c_str(), perms) && errno != EEXIST) {
         return false;
     }
 

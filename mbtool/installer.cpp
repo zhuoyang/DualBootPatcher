@@ -143,19 +143,19 @@ int log_mknod(const char *pathname, mode_t mode, dev_t dev)
     return true;
 }
 
-bool log_is_mounted(const std::string &mountpoint)
+bool log_is_mounted(const char *mountpoint)
 {
     if (!util::is_mounted(mountpoint)) {
-        LOGE("%s is not mounted", mountpoint.c_str());
+        LOGE("%s is not mounted", mountpoint);
         return false;
     }
     return true;
 }
 
-bool log_unmount_all(const std::string &dir)
+bool log_unmount_all(const char *dir)
 {
     if (!util::unmount_all(dir)) {
-        LOGE("Failed to unmount all mountpoints within %s", dir.c_str());
+        LOGE("Failed to unmount all mountpoints within %s", dir);
         return false;
     }
     return true;
@@ -170,12 +170,11 @@ bool log_delete_recursive(const std::string &path)
     return true;
 }
 
-bool log_copy_dir(const std::string &source,
-                  const std::string &target, int flags)
+bool log_copy_dir(const char *source,
+                  const char *target, int flags)
 {
     if (!util::copy_dir(source, target, flags)) {
-        LOGE("Failed to copy contents of %s/ to %s/",
-             source.c_str(), target.c_str());
+        LOGE("Failed to copy contents of %s/ to %s/", source, target);
         return false;
     }
     return true;
@@ -236,7 +235,7 @@ bool Installer::create_chroot()
     }
 
     // Unmount everything previously mounted in the chroot
-    if (!log_unmount_all(_chroot)) {
+    if (!log_unmount_all(_chroot.c_str())) {
         return false;
     }
 
@@ -284,7 +283,7 @@ bool Installer::create_chroot()
     // Copy the contents of sbin since we need to mess with some of the binaries
     // there. Also, for whatever reason, bind mounting /sbin results in EINVAL
     // no matter if it's done from here or from busybox.
-    if (!log_copy_dir("/sbin", in_chroot("/sbin"),
+    if (!log_copy_dir("/sbin", in_chroot("/sbin").c_str(),
                       util::COPY_ATTRIBUTES
                     | util::COPY_XATTRS
                     | util::COPY_EXCLUDE_TOP_LEVEL)) {
@@ -321,13 +320,13 @@ bool Installer::create_chroot()
 
     // We need /dev/input/* and /dev/graphics/* for AROMA
 #if 1
-    if (!log_copy_dir("/dev/input", in_chroot("/dev/input"),
+    if (!log_copy_dir("/dev/input", in_chroot("/dev/input").c_str(),
                       util::COPY_ATTRIBUTES
                     | util::COPY_XATTRS
                     | util::COPY_EXCLUDE_TOP_LEVEL)) {
         return false;
     }
-    if (!log_copy_dir("/dev/graphics", in_chroot("/dev/graphics"),
+    if (!log_copy_dir("/dev/graphics", in_chroot("/dev/graphics").c_str(),
                       util::COPY_ATTRIBUTES
                     | util::COPY_XATTRS
                     | util::COPY_EXCLUDE_TOP_LEVEL)) {
@@ -364,7 +363,7 @@ bool Installer::destroy_chroot() const
     umount(in_chroot("/sbin").c_str());
 
     // Unmount everything previously mounted in the chroot
-    if (!util::unmount_all(_chroot)) {
+    if (!util::unmount_all(_chroot.c_str())) {
         LOGE("Failed to unmount previous mount points in %s", _chroot.c_str());
         return false;
     }
@@ -385,7 +384,7 @@ bool Installer::extract_multiboot_files()
         { MULTIBOOT_INFO_PROP,     _temp + "/info.prop"     },
     };
 
-    if (!util::extract_files2(_zip_file, files)) {
+    if (!util::extract_files2(_zip_file.c_str(), files)) {
         LOGE("Failed to extract all multiboot files");
         return false;
     }
@@ -404,7 +403,7 @@ bool Installer::set_up_busybox_wrapper()
 
     rename(sbin_busybox.c_str(), in_chroot("/sbin/busybox_orig").c_str());
 
-    if (!util::copy_file(temp_busybox, sbin_busybox,
+    if (!util::copy_file(temp_busybox.c_str(), sbin_busybox.c_str(),
                          util::COPY_ATTRIBUTES | util::COPY_XATTRS)) {
         LOGE("Failed to copy %s to %s: %s",
              temp_busybox.c_str(), sbin_busybox.c_str(), strerror(errno));
@@ -426,7 +425,7 @@ bool Installer::set_up_busybox_wrapper()
  */
 bool Installer::create_image(const std::string &path, uint64_t size)
 {
-    if (!util::mkdir_parent(path, S_IRWXU)) {
+    if (!util::mkdir_parent(path.c_str(), S_IRWXU)) {
         LOGE("%s: Failed to create parent directory: %s",
              path.c_str(), strerror(errno));
         return false;
@@ -434,7 +433,7 @@ bool Installer::create_image(const std::string &path, uint64_t size)
 
     // Ensure we have enough space since we're creating a sparse file that may
     // get bigger
-    uint64_t avail = util::mount_get_avail_size(util::dir_name(path).c_str());
+    uint64_t avail = util::mount_get_avail_size(util::dir_name(path.c_str()).c_str());
     if (avail < size) {
         display_msg("");
         display_msg(util::format("There is not enough space to create %s",
@@ -488,7 +487,7 @@ bool Installer::system_image_copy(const std::string &source,
     });
 
     if (stat(source.c_str(), &sb) < 0
-            && !util::mkdir_recursive(source, 0755)) {
+            && !util::mkdir_recursive(source.c_str(), 0755)) {
         LOGE("Failed to create %s: %s", source.c_str(), strerror(errno));
         return false;
     }
@@ -540,7 +539,7 @@ bool Installer::run_real_updater()
 
     std::string chroot_updater = in_chroot("/mb/updater");
 
-    if (!util::copy_file(updater, chroot_updater,
+    if (!util::copy_file(updater.c_str(), chroot_updater.c_str(),
                          util::COPY_ATTRIBUTES | util::COPY_XATTRS)) {
         LOGE("Failed to copy %s to %s: %s",
              updater.c_str(), chroot_updater.c_str(), strerror(errno));
@@ -848,7 +847,7 @@ Installer::ProceedState Installer::install_stage_initialize()
         { "system.new.dat", false },
         { "system.img", false }
     };
-    if (!util::archive_exists(_zip_file, info)) {
+    if (!util::archive_exists(_zip_file.c_str(), info)) {
         LOGE("Failed to read zip file");
     } else {
         _has_block_image = false;
@@ -1015,15 +1014,16 @@ Installer::ProceedState Installer::install_stage_check_device()
             dev_path += "/";
             dev_path += dev;
 
-            if (!util::mkdir_parent(dev_path, 0755)) {
+            if (!util::mkdir_parent(dev_path.c_str(), 0755)) {
                 LOGE("Failed to create parent directory of %s",
                      dev_path.c_str());
             }
 
             // Follow symlinks just in case the symlink source isn't in the list
-            if (!util::copy_file(dev, dev_path, util::COPY_ATTRIBUTES
-                                              | util::COPY_XATTRS
-                                              | util::COPY_FOLLOW_SYMLINKS)) {
+            if (!util::copy_file(dev.c_str(), dev_path.c_str(),
+                                 util::COPY_ATTRIBUTES
+                               | util::COPY_XATTRS
+                               | util::COPY_FOLLOW_SYMLINKS)) {
                 LOGE("Failed to copy %s. Continuing anyway", dev.c_str());
             }
 
@@ -1103,7 +1103,8 @@ Installer::ProceedState Installer::install_stage_set_up_chroot()
     LOGD("Boot partition SHA1sum: %s", digest.c_str());
 
     // Save a copy of the boot image that we'll restore if the installation fails
-    if (!util::copy_contents(_boot_block_dev, _temp + "/boot.orig")) {
+    if (!util::copy_contents(_boot_block_dev.c_str(),
+                             (_temp + "/boot.orig").c_str())) {
         display_msg("Failed to backup boot partition");
         return ProceedState::Fail;
     }
@@ -1115,16 +1116,16 @@ Installer::ProceedState Installer::install_stage_set_up_chroot()
     }
 
     // Copy ourself for the real update-binary to use
-    util::copy_file(mb_self_get_path(), in_chroot(HELPER_TOOL),
+    util::copy_file(mb_self_get_path(), in_chroot(HELPER_TOOL).c_str(),
                     util::COPY_ATTRIBUTES | util::COPY_XATTRS);
     chmod(in_chroot(HELPER_TOOL).c_str(), 0555);
 
     // Copy /default.prop
-    util::copy_file("/default.prop", in_chroot("/default.prop"),
+    util::copy_file("/default.prop", in_chroot("/default.prop").c_str(),
                     util::COPY_ATTRIBUTES | util::COPY_XATTRS);
 
     // Copy file_contexts
-    util::copy_file("/file_contexts", in_chroot("/file_contexts"),
+    util::copy_file("/file_contexts", in_chroot("/file_contexts").c_str(),
                     util::COPY_ATTRIBUTES | util::COPY_XATTRS);
 
 
@@ -1157,8 +1158,8 @@ Installer::ProceedState Installer::install_stage_mount_filesystems()
             return ProceedState::Fail;
         }
     } else {
-        if (!util::bind_mount(_cache_path, 0771,
-                              in_chroot("/cache"), 0771)) {
+        if (!util::bind_mount(_cache_path.c_str(), 0771,
+                              in_chroot("/cache").c_str(), 0771)) {
             display_msg(util::format("Failed to bind mount %s to %s",
                                      _cache_path.c_str(),
                                      in_chroot("/cache").c_str()));
@@ -1194,8 +1195,8 @@ Installer::ProceedState Installer::install_stage_mount_filesystems()
             return ProceedState::Fail;
         }
     } else {
-        if (!util::bind_mount(_data_path, 0771,
-                              in_chroot("/data"), 0771)) {
+        if (!util::bind_mount(_data_path.c_str(), 0771,
+                              in_chroot("/data").c_str(), 0771)) {
             display_msg(util::format("Failed to bind mount %s to %s",
                                      _data_path.c_str(),
                                      in_chroot("/data").c_str()));
@@ -1217,7 +1218,7 @@ Installer::ProceedState Installer::install_stage_mount_filesystems()
                                      (double) system_size / 1024 / 1024));
             display_msg("This may take a while");
 
-            if (!util::mkdir_parent(_system_path, 0755)) {
+            if (!util::mkdir_parent(_system_path.c_str(), 0755)) {
                 display_msg(util::format("Failed to create parent directory of %s",
                                          _system_path.c_str()));
                 return ProceedState::Fail;
@@ -1240,8 +1241,8 @@ Installer::ProceedState Installer::install_stage_mount_filesystems()
     } else {
         // Create a temporary image if the zip file has a system.transfer.list file
         if (!_has_block_image && _rom->id != "primary") {
-            if (!util::bind_mount(_system_path, 0771,
-                                  in_chroot("/system"), 0771)) {
+            if (!util::bind_mount(_system_path.c_str(), 0771,
+                                  in_chroot("/system").c_str(), 0771)) {
                 display_msg(util::format("Failed to bind mount %s to %s",
                                          _system_path.c_str(),
                                          in_chroot("/system").c_str()));
@@ -1498,7 +1499,7 @@ Installer::ProceedState Installer::install_stage_finish()
         path += "/";
         path += _rom->id;
         path += "/boot.img";
-        if (!util::mkdir_parent(path, 0775)) {
+        if (!util::mkdir_parent(path.c_str(), 0775)) {
             display_msg(util::format("Failed to create %s", path.c_str()));
             return ProceedState::Fail;
         }
@@ -1547,7 +1548,7 @@ Installer::ProceedState Installer::install_stage_finish()
             LOGE("%s: Failed to chmod: %s", path.c_str(), strerror(errno));
         }
 
-        if (!util::chown(path, "media_rw", "media_rw", 0)) {
+        if (!util::chown(path.c_str(), "media_rw", "media_rw", 0)) {
             // Non-fatal
             LOGE("%s: Failed to chown: %s", path.c_str(), strerror(errno));
         }
@@ -1578,7 +1579,7 @@ Installer::ProceedState Installer::install_stage_finish()
 
     std::string context;
     if (util::selinux_lget_context("/data/media/0", &context)
-            && !util::selinux_lset_context_recursive(MULTIBOOT_DIR, context)) {
+            && !util::selinux_lset_context_recursive(MULTIBOOT_DIR, context.c_str())) {
         // Non-fatal
         LOGE("%s: Failed to set SELinux context to %s: %s",
              MULTIBOOT_DIR, context.c_str(), strerror(errno));
@@ -1600,7 +1601,8 @@ void Installer::install_stage_cleanup(Installer::ProceedState ret)
     remove(_temp_image_path.c_str());
 
     if (ret == ProceedState::Fail && !_boot_block_dev.empty()
-            && !util::copy_contents(_temp + "/boot.orig", _boot_block_dev)) {
+            && !util::copy_contents((_temp + "/boot.orig").c_str(),
+                                    _boot_block_dev.c_str())) {
         LOGE("Failed to restore boot partition: %s", strerror(errno));
         display_msg("Failed to restore boot partition");
     }

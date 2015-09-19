@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -31,8 +31,7 @@ namespace mb
 namespace util
 {
 
-bool kernel_cmdline_get_option(const std::string &option,
-                               std::string *out)
+bool kernel_cmdline_get_option(const char *option, std::string *out)
 {
     std::string line;
     if (!file_first_line("/proc/cmdline", &line)) {
@@ -51,7 +50,7 @@ bool kernel_cmdline_get_option(const std::string &option,
     token = strtok_r(linebuf.data(), " ", &temp);
     while (token != nullptr) {
         if (starts_with(token, option)) {
-            char *p = token + option.size();
+            char *p = token + strlen(option);
             if (*p == '\0' || *p == ' ') {
                 // No value
                 *out = "";

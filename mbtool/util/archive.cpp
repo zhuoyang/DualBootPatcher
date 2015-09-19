@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -77,7 +77,7 @@ int archive_copy_header_and_data(archive *in, archive *out,
     return ret;
 }
 
-static bool set_up_input(archive *in, const std::string &filename)
+static bool set_up_input(archive *in, const char *filename)
 {
     // Add more as needed
     //archive_read_support_format_all(in);
@@ -86,9 +86,9 @@ static bool set_up_input(archive *in, const std::string &filename)
     archive_read_support_format_zip(in);
     //archive_read_support_filter_xz(in);
 
-    if (archive_read_open_filename(in, filename.c_str(), 10240) != ARCHIVE_OK) {
+    if (archive_read_open_filename(in, filename, 10240) != ARCHIVE_OK) {
         LOGE("%s: Failed to open archive: %s",
-             filename.c_str(), archive_error_string(in));
+             filename, archive_error_string(in));
         return false;
     }
 
@@ -108,7 +108,7 @@ static void set_up_output(archive *out)
                                    ARCHIVE_EXTRACT_XATTR);
 }
 
-bool extract_archive(const std::string &filename, const std::string &target)
+bool extract_archive(const char *filename, const char *target)
 {
     archive_ptr in(archive_read_new(), archive_read_free);
     archive_ptr out(archive_write_disk_new(), archive_write_free);
@@ -134,13 +134,13 @@ bool extract_archive(const std::string &filename, const std::string &target)
 
     if (!mkdir_recursive(target, S_IRWXU | S_IRWXG | S_IRWXO)) {
         LOGE("%s: Failed to create directory: %s",
-             target.c_str(), strerror(errno));
+             target, strerror(errno));
         return false;
     }
 
-    if (chdir(target.c_str()) < 0) {
+    if (chdir(target) < 0) {
         LOGE("%s: Failed to change to target directory: %s",
-             target.c_str(), strerror(errno));
+             target, strerror(errno));
         return false;
     }
 
@@ -163,7 +163,7 @@ bool extract_archive(const std::string &filename, const std::string &target)
     return true;
 }
 
-bool extract_files(const std::string &filename, const std::string &target,
+bool extract_files(const char *filename, const char *target,
                    const std::vector<std::string> &files)
 {
     if (files.empty()) {
@@ -195,13 +195,13 @@ bool extract_files(const std::string &filename, const std::string &target,
 
     if (!mkdir_recursive(target, S_IRWXU | S_IRWXG | S_IRWXO)) {
         LOGE("%s: Failed to create directory: %s",
-             target.c_str(), strerror(errno));
+             target, strerror(errno));
         return false;
     }
 
-    if (chdir(target.c_str()) < 0) {
+    if (chdir(target) < 0) {
         LOGE("%s: Failed to change to target directory: %s",
-             target.c_str(), strerror(errno));
+             target, strerror(errno));
         return false;
     }
 
@@ -234,7 +234,7 @@ bool extract_files(const std::string &filename, const std::string &target,
     return true;
 }
 
-bool extract_files2(const std::string &filename,
+bool extract_files2(const char *filename,
                     const std::vector<extract_info> &files)
 {
     if (files.empty()) {
@@ -289,7 +289,7 @@ bool extract_files2(const std::string &filename,
     return true;
 }
 
-bool archive_exists(const std::string &filename,
+bool archive_exists(const char *filename,
                     std::vector<exists_info> &files)
 {
     if (files.empty()) {

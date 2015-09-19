@@ -79,11 +79,11 @@ static int options_to_flags(char *args, char *new_args, int size);
 
 
 // Much simplified version of fs_mgr's fstab parsing code
-std::vector<fstab_rec> read_fstab(const std::string &path)
+std::vector<fstab_rec> read_fstab(const char *path)
 {
-    file_ptr fp(std::fopen(path.c_str(), "rb"), std::fclose);
+    file_ptr fp(std::fopen(path, "rb"), std::fclose);
     if (!fp) {
-        LOGE("Failed to open file %s: %s", path.c_str(), strerror(errno));
+        LOGE("Failed to open file %s: %s", path, strerror(errno));
         return std::vector<fstab_rec>();
     }
 

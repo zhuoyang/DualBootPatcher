@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -65,7 +65,7 @@ std::string loopdev_find_unused(void)
     return format(LOOP_FMT, n);
 }
 
-bool loopdev_set_up_device(const std::string &loopdev, const std::string &file,
+bool loopdev_set_up_device(const char *loopdev, const char *file,
                            uint64_t offset, bool ro)
 {
     int ffd = -1;
@@ -73,7 +73,7 @@ bool loopdev_set_up_device(const std::string &loopdev, const std::string &file,
 
     struct loop_info64 loopinfo;
 
-    if ((ffd = open(file.c_str(), ro ? O_RDONLY : O_RDWR)) < 0) {
+    if ((ffd = open(file, ro ? O_RDONLY : O_RDWR)) < 0) {
         return false;
     }
 
@@ -81,7 +81,7 @@ bool loopdev_set_up_device(const std::string &loopdev, const std::string &file,
         close(ffd);
     });
 
-    if ((lfd = open(loopdev.c_str(), ro ? O_RDONLY : O_RDWR)) < 0) {
+    if ((lfd = open(loopdev, ro ? O_RDONLY : O_RDWR)) < 0) {
         return false;
     }
 
@@ -104,10 +104,10 @@ bool loopdev_set_up_device(const std::string &loopdev, const std::string &file,
     return true;
 }
 
-bool loopdev_remove_device(const std::string &loopdev)
+bool loopdev_remove_device(const char *loopdev)
 {
     int lfd;
-    if ((lfd = open(loopdev.c_str(), O_RDONLY)) < 0) {
+    if ((lfd = open(loopdev, O_RDONLY)) < 0) {
         return false;
     }
     int ret = ioctl(lfd, LOOP_CLR_FD, 0);

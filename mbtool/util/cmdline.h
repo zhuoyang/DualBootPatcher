@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -26,8 +26,7 @@ namespace mb
 namespace util
 {
 
-bool kernel_cmdline_get_option(const std::string &option,
-                               std::string *out);
+bool kernel_cmdline_get_option(const char *option, std::string *out);
 
 }
 }

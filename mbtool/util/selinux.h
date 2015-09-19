@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -40,23 +40,23 @@ struct SelinuxRule
     std::string perm;
 };
 
-bool selinux_read_policy(const std::string &path, policydb_t *pdb);
-bool selinux_write_policy(const std::string &path, policydb_t *pdb);
+bool selinux_read_policy(const char *path, policydb_t *pdb);
+bool selinux_write_policy(const char *path, policydb_t *pdb);
 void selinux_make_all_permissive(policydb_t *pdb);
-bool selinux_make_permissive(policydb_t *pdb, const std::string &type_str);
+bool selinux_make_permissive(policydb_t *pdb, const char *type_str);
 bool selinux_add_rule(policydb_t *pdb,
-                      const std::string &source_str,
-                      const std::string &target_str,
-                      const std::string &class_str,
-                      const std::string &perm_str);
-bool selinux_get_context(const std::string &path, std::string *context);
-bool selinux_lget_context(const std::string &path, std::string *context);
-bool selinux_set_context(const std::string &path, const std::string &context);
-bool selinux_lset_context(const std::string &path, const std::string &context);
-bool selinux_set_context_recursive(const std::string &path,
-                                   const std::string &context);
-bool selinux_lset_context_recursive(const std::string &path,
-                                    const std::string &context);
+                      const char *source_str,
+                      const char *target_str,
+                      const char *class_str,
+                      const char *perm_str);
+bool selinux_get_context(const char *path, std::string *context);
+bool selinux_lget_context(const char *path, std::string *context);
+bool selinux_set_context(const char *path, const char *context);
+bool selinux_lset_context(const char *path, const char *context);
+bool selinux_set_context_recursive(const char *path,
+                                   const char *context);
+bool selinux_lset_context_recursive(const char *path,
+                                    const char *context);
 bool selinux_get_enforcing(int *value);
 bool selinux_set_enforcing(int value);
 

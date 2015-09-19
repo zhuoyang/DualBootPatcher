@@ -19,15 +19,15 @@
 
 #pragma once
 
-#include <string>
+#include <sys/types.h>
 
 namespace mb
 {
 namespace util
 {
 
-bool mkdir_recursive(const std::string &dir, mode_t mode);
-bool mkdir_parent(const std::string &path, mode_t perms);
+bool mkdir_recursive(const char *dir, mode_t mode);
+bool mkdir_parent(const char *path, mode_t perms);
 
 }
 }

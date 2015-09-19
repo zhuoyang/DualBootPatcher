@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -19,8 +19,6 @@
 
 #pragma once
 
-#include <string>
-
 namespace mb
 {
 namespace util
@@ -35,11 +33,11 @@ enum CopyFlags : int
 };
 
 bool copy_data_fd(int fd_source, int fd_target);
-bool copy_xattrs(const std::string &source, const std::string &target);
-bool copy_stat(const std::string &source, const std::string &target);
-bool copy_contents(const std::string &source, const std::string &target);
-bool copy_file(const std::string &source, const std::string &target, int flags);
-bool copy_dir(const std::string &source, const std::string &target, int flags);
+bool copy_xattrs(const char *source, const char *target);
+bool copy_stat(const char *source, const char *target);
+bool copy_contents(const char *source, const char *target);
+bool copy_file(const char *source, const char *target, int flags);
+bool copy_dir(const char *source, const char *target, int flags);
 
 }
 }

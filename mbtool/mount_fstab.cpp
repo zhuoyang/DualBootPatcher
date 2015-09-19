@@ -596,7 +596,7 @@ static bool mount_image(const std::string &image,
                         const std::string &mount_point,
                         mode_t perms)
 {
-    if (!util::mkdir_recursive(mount_point, perms)) {
+    if (!util::mkdir_recursive(mount_point.c_str(), perms)) {
         LOGE("Failed to create directory %s: %s",
              mount_point.c_str(), strerror(errno));
         return false;
@@ -630,7 +630,7 @@ static bool mount_rom(const std::shared_ptr<Rom> &rom)
             return false;
         }
     } else {
-        if (!util::bind_mount(target_system, 0771, "/system", 0771)) {
+        if (!util::bind_mount(target_system.c_str(), 0771, "/system", 0771)) {
             return false;
         }
     }
@@ -639,7 +639,7 @@ static bool mount_rom(const std::shared_ptr<Rom> &rom)
             return false;
         }
     } else {
-        if (!util::bind_mount(target_cache, 0771, "/cache", 0771)) {
+        if (!util::bind_mount(target_cache.c_str(), 0771, "/cache", 0771)) {
             return false;
         }
     }
@@ -648,7 +648,7 @@ static bool mount_rom(const std::shared_ptr<Rom> &rom)
             return false;
         }
     } else {
-        if (!util::bind_mount(target_data, 0771, "/data", 0771)) {
+        if (!util::bind_mount(target_data.c_str(), 0771, "/data", 0771)) {
             return false;
         }
     }
@@ -773,8 +773,8 @@ bool mount_fstab(const std::string &fstab_path, bool overwrite_fstab)
         return false;
     }
 
-    base_name = util::base_name(fstab_path);
-    dir_name = util::dir_name(fstab_path);
+    base_name = util::base_name(fstab_path.c_str());
+    dir_name = util::dir_name(fstab_path.c_str());
 
     path_fstab_gen += dir_name;
     path_fstab_gen += "/.";
@@ -793,7 +793,7 @@ bool mount_fstab(const std::string &fstab_path, bool overwrite_fstab)
     }
 
     // Read original fstab
-    fstab = util::read_fstab(fstab_path);
+    fstab = util::read_fstab(fstab_path.c_str());
     if (fstab.empty()) {
         LOGE("Failed to read %s", fstab_path.c_str());
         return false;
@@ -829,7 +829,7 @@ bool mount_fstab(const std::string &fstab_path, bool overwrite_fstab)
     if (overwrite_fstab) {
         // For backwards compatibility, keep the old generated fstab as the
         // init.*.rc file will refer to it under the generated name
-        util::copy_contents(path_fstab_gen, fstab_path);
+        util::copy_contents(path_fstab_gen.c_str(), fstab_path.c_str());
         //unlink(fstab_path.c_str());
         //rename(path_fstab_gen.c_str(), fstab_path.c_str());
     }

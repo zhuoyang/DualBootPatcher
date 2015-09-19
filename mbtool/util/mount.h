@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014  Andrew Gunnerson <andrewgunnerson@gmail.com>
+ * Copyright (C) 2014-2015  Andrew Gunnerson <andrewgunnerson@gmail.com>
  *
  * This file is part of MultiBootPatcher
  *
@@ -19,17 +19,17 @@
 
 #pragma once
 
-#include <string>
+#include <sys/types.h>
 
 namespace mb
 {
 namespace util
 {
 
-bool is_mounted(const std::string &mountpoint);
-bool unmount_all(const std::string &dir);
-bool bind_mount(const std::string &source, mode_t source_perms,
-                const std::string &target, mode_t target_perms);
+bool is_mounted(const char *mountpoint);
+bool unmount_all(const char *dir);
+bool bind_mount(const char *source, mode_t source_perms,
+                const char *target, mode_t target_perms);
 bool mount(const char *source, const char *target, const char *fstype,
            unsigned long mount_flags, const void *data);
 bool umount(const char *target);
